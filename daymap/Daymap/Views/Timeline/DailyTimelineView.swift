@@ -5,7 +5,8 @@ struct DailyTimelineView: View {
     @EnvironmentObject private var model: AppViewModel
 
     private let startHour = 6
-    private let endHour = 22
+    /// Exclusive upper bound: timeline runs from `startHour` through end of day (midnight).
+    private let endHour = 24
     private let hourHeight: CGFloat = 52
     private let contentMaxWidth: CGFloat = 560
 
@@ -250,7 +251,7 @@ private struct CurrentTimeIndicator: View {
             if PlanningDateHelpers.isSameDay(day, now) {
                 let minutes = PlanningDateHelpers.minutesFromMidnight(now)
                 let y = CGFloat(minutes - startHour * 60) / 60.0 * hourHeight
-                let visible = minutes >= startHour * 60 && minutes <= endHour * 60
+                let visible = minutes >= startHour * 60 && minutes < endHour * 60
                 if visible {
                     ZStack(alignment: .leading) {
                         Rectangle()

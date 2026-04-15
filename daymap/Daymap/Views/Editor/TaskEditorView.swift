@@ -8,6 +8,7 @@ struct TaskEditorView: View {
     @FocusState private var focusedField: Field?
 
     @State private var appear = false
+    @State private var isEditingTitle = false
 
     @State private var newSubtaskTitle: String = ""
     @State private var tagField: String = ""
@@ -34,19 +35,9 @@ struct TaskEditorView: View {
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 14) {
-                        // Primary: command-aware title
+                        // Title: visible by default, click to inline edit.
                         VStack(alignment: .leading, spacing: 10) {
-                            TextField(
-                                "What are you doing? (e.g. Plan GTM tomorrow 2pm 1h #strategy)",
-                                text: $draft.title
-                            )
-                            .textFieldStyle(.plain)
-                            .font(.system(size: 18, weight: .semibold, design: .rounded))
-                            .focused($focusedField, equals: .title)
-                            .onChange(of: draft.title) { _, _ in
-                                parseAndApply()
-                            }
-                            .onSubmit { save() }
+                            titleInline
 
                             if !parsed.chips.isEmpty {
                                 HStack(spacing: 8) {
@@ -343,9 +334,26 @@ struct TaskEditorView: View {
                     }
                     .padding(16)
                 }
+                // Clicking anywhere in the editor (outside the title field) exits inline title edit.
+                .background(
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            guard isEditingTitle else { return }
+                            isEditingTitle = false
+                            if focusedField == .title {
+                                focusedField = nil
+                            }
+                        }
+                )
             }
-            .navigationTitle(isNew ? "New Task" : "Edit Task")
+            .navigationTitle("")
+            .toolbarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    titleBar
+                        .frame(maxWidth: 420)
+                }
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                         .keyboardShortcut(.cancelAction)
@@ -370,12 +378,101 @@ struct TaskEditorView: View {
         .opacity(appear ? 1 : 0)
         .scaleEffect(appear ? 1.0 : 0.96)
         .animation(.spring(response: 0.34, dampingFraction: 0.88), value: appear)
+        .onChange(of: focusedField) { _, newValue in
+            // If focus moves away from the title field, exit inline title edit.
+            if isEditingTitle, newValue != .title {
+                isEditingTitle = false
+            }
+        }
         .onAppear {
             appear = true
+            isEditingTitle = isNew
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.06) {
-                focusedField = .title
+                focusedField = isEditingTitle ? .title : nil
                 parseAndApply(initial: true)
             }
+        }
+    }
+
+    @ViewBuilder
+    private var titleBar: some View {
+        if isEditingTitle {
+            TextField("Task", text: $draft.title)
+                .textFieldStyle(.plain)
+                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .focused($focusedField, equals: .title)
+                .onChange(of: draft.title) { _, _ in
+                    parseAndApply()
+                }
+                .onSubmit {
+                    isEditingTitle = false
+                    focusedField = nil
+                }
+                .onExitCommand {
+                    isEditingTitle = false
+                    focusedField = nil
+                }
+        } else {
+            let display = draft.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            Button {
+                isEditingTitle = true
+                DispatchQueue.main.async {
+                    focusedField = .title
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Text(display.isEmpty ? (isNew ? "New Task" : "Untitled task") : display)
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .foregroundStyle(display.isEmpty ? .secondary : .primary)
+                        .lineLimit(1)
+                    Image(systemName: "pencil")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("Click to edit title")
+        }
+    }
+
+    @ViewBuilder
+    private var titleInline: some View {
+        if isEditingTitle {
+            TextField(
+                "Task title",
+                text: $draft.title
+            )
+            .textFieldStyle(.plain)
+            .font(.system(size: 18, weight: .semibold, design: .rounded))
+            .focused($focusedField, equals: .title)
+            .onChange(of: draft.title) { _, _ in
+                parseAndApply()
+            }
+            .onSubmit {
+                isEditingTitle = false
+                focusedField = nil
+            }
+            .onExitCommand {
+                isEditingTitle = false
+                focusedField = nil
+            }
+        } else {
+            let display = draft.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            Button {
+                isEditingTitle = true
+                DispatchQueue.main.async {
+                    focusedField = .title
+                }
+            } label: {
+                Text(display.isEmpty ? (isNew ? "New Task" : "Untitled task") : display)
+                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+                    .foregroundStyle(display.isEmpty ? .secondary : .primary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("Click to edit title")
         }
     }
 
@@ -410,11 +507,19 @@ struct TaskEditorView: View {
 
         let day = PlanningDateHelpers.startOfDay(draft.date)
         draft.date = day
-        if draft.endTime <= draft.startTime {
-            draft.endTime = draft.startTime.addingTimeInterval(30 * 60)
+        // Normalize times onto the task's day while supporting "spills past midnight".
+        let mergedStart = PlanningDateHelpers.dateByMerging(day: day, timeFrom: draft.startTime)
+        var mergedEnd = PlanningDateHelpers.dateByMerging(day: day, timeFrom: draft.endTime)
+        if mergedEnd <= mergedStart {
+            // If the user picked an end time like 12:15 AM for a late-night task,
+            // interpret it as next day rather than a negative duration.
+            mergedEnd = PlanningDateHelpers.calendar.date(byAdding: .day, value: 1, to: mergedEnd) ?? mergedEnd
         }
-        draft.startTime = PlanningDateHelpers.dateByMerging(day: day, timeFrom: draft.startTime)
-        draft.endTime = PlanningDateHelpers.dateByMerging(day: day, timeFrom: draft.endTime)
+        if mergedEnd <= mergedStart {
+            mergedEnd = mergedStart.addingTimeInterval(30 * 60)
+        }
+        draft.startTime = mergedStart
+        draft.endTime = mergedEnd
 
         if let cleaned = parsed.cleanedTitle, !cleaned.isEmpty {
             draft.title = cleaned
@@ -630,13 +735,14 @@ private enum TaskIntentParser {
             }
         }
 
-        // Date keywords
+        // Date keywords (match whole tokens, not substrings inside other words)
         let lower = input.lowercased()
-        if lower.contains("tomorrow") {
+        let wordTokens = tokenizeWords(lower)
+        if wordTokens.contains("tomorrow") {
             result.day = PlanningDateHelpers.calendar.date(byAdding: .day, value: 1, to: PlanningDateHelpers.startOfDay(reference))
-        } else if lower.contains("today") {
+        } else if wordTokens.contains("today") {
             result.day = PlanningDateHelpers.startOfDay(reference)
-        } else if let weekday = parseWeekday(lower) {
+        } else if let weekday = parseWeekday(tokens: wordTokens) {
             result.day = next(weekday: weekday, from: reference)
         }
 
@@ -716,19 +822,24 @@ private enum TaskIntentParser {
         return minutes > 0 ? max(15, minutes) : nil
     }
 
-    private static func parseWeekday(_ lower: String) -> Int? {
+    private static func tokenizeWords(_ lower: String) -> Set<String> {
+        // Split on non-letters so "saturday's" => ["saturday"] and we never match inside "satisfaction".
+        Set(lower.split(whereSeparator: { !$0.isLetter }).map { String($0) }.filter { !$0.isEmpty })
+    }
+
+    private static func parseWeekday(tokens: Set<String>) -> Int? {
         // Calendar weekday: 1 = Sunday ... 7 = Saturday
-        let map: [(String, Int)] = [
-            ("sun", 1), ("sunday", 1),
-            ("mon", 2), ("monday", 2),
-            ("tue", 3), ("tues", 3), ("tuesday", 3),
-            ("wed", 4), ("wednesday", 4),
-            ("thu", 5), ("thur", 5), ("thurs", 5), ("thursday", 5),
-            ("fri", 6), ("friday", 6),
-            ("sat", 7), ("saturday", 7),
+        let map: [String: Int] = [
+            "sun": 1, "sunday": 1,
+            "mon": 2, "monday": 2,
+            "tue": 3, "tues": 3, "tuesday": 3,
+            "wed": 4, "wednesday": 4,
+            "thu": 5, "thur": 5, "thurs": 5, "thursday": 5,
+            "fri": 6, "friday": 6,
+            "sat": 7, "saturday": 7,
         ]
-        for (k, v) in map where lower.contains(k) {
-            return v
+        for t in tokens {
+            if let v = map[t] { return v }
         }
         return nil
     }

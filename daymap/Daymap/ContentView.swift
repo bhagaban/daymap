@@ -190,6 +190,13 @@ private struct DatePickerPopover: View {
     @Binding var selectedDate: Date
     var onClose: () -> Void
 
+    private var dayBinding: Binding<Date> {
+        Binding(
+            get: { PlanningDateHelpers.startOfDay(selectedDate) },
+            set: { selectedDate = PlanningDateHelpers.startOfDay($0) }
+        )
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -207,7 +214,7 @@ private struct DatePickerPopover: View {
 
             DatePicker(
                 "Selected day",
-                selection: $selectedDate,
+                selection: dayBinding,
                 displayedComponents: [.date]
             )
             .datePickerStyle(.graphical)
@@ -217,13 +224,15 @@ private struct DatePickerPopover: View {
 
             HStack(spacing: 10) {
                 Button("Yesterday") {
-                    selectedDate = PlanningDateHelpers.calendar.date(byAdding: .day, value: -1, to: selectedDate) ?? selectedDate
+                    let base = PlanningDateHelpers.startOfDay(selectedDate)
+                    selectedDate = PlanningDateHelpers.calendar.date(byAdding: .day, value: -1, to: base).map(PlanningDateHelpers.startOfDay) ?? base
                 }
                 Button("Today") {
                     selectedDate = PlanningDateHelpers.startOfDay(Date())
                 }
                 Button("Tomorrow") {
-                    selectedDate = PlanningDateHelpers.calendar.date(byAdding: .day, value: 1, to: selectedDate) ?? selectedDate
+                    let base = PlanningDateHelpers.startOfDay(selectedDate)
+                    selectedDate = PlanningDateHelpers.calendar.date(byAdding: .day, value: 1, to: base).map(PlanningDateHelpers.startOfDay) ?? base
                 }
                 Spacer()
             }

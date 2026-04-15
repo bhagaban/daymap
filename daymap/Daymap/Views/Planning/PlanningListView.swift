@@ -95,7 +95,7 @@ struct PlanningListView: View {
     private var plannedDurationString: String {
         let secs = model.tasks(on: model.selectedDate)
             .filter { !$0.isCompleted }
-            .reduce(0.0) { $0 + $1.duration }
+            .reduce(0.0) { $0 + max(0, $1.duration) }
         let m = Int(secs / 60)
         let h = m / 60
         let mm = m % 60
