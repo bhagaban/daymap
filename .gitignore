@@ -1,0 +1,18 @@
+.DS_Store
+
+# Xcode / SwiftPM
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xccheckout
+*.xcscmblueprint
+*.xcbkptlist
+
+# SwiftPM
+.build/
+Packages/
+Package.resolved
+
+# Logs
+*.log
+
