@@ -18,17 +18,29 @@ Daymap is a macOS app (SwiftUI) for planning your day around time-blocked tasks.
 
 ## Screenshots
 
-### Daily
+### Daily (focus)
 
 ![Daily focus mode](screenshots/daily-focus.png)
 
-### Weekly
+### Daily (timeline)
 
 ![Daily timeline view](screenshots/daily-timeline.png)
 
-### Focus Mode
+### Weekly
 
 ![Weekly view](screenshots/weekly.png)
+
+## Download (macOS app)
+
+- **Download**: [`downloads/Daymap.app.zip`](downloads/Daymap.app.zip)
+- **Install**:
+  - Unzip the file (Finder will create `Daymap.app`)
+  - Drag `Daymap.app` into **Applications**
+  - If macOS blocks it on first launch: right‑click `Daymap.app` → **Open** → **Open**
+
+Notes:
+- This is a **Debug** build generated from Xcode (not notarized).
+- For a distributable build, prefer **Xcode → Product → Archive** and export a Release build.
 
 ## Requirements
 
