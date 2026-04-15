@@ -18,15 +18,15 @@ Instead of dumping tasks into an endless list, Daymap lets you map your work ont
 
 ## Screenshots
 
-### Daily (focus)
+### Daily
 
 ![Daily focus mode](screenshots/daily-focus.png)
 
-### Daily (timeline)
+### Weekly
 
 ![Daily timeline view](screenshots/daily-timeline.png)
 
-### Weekly
+### Focus
 
 ![Weekly view](screenshots/weekly.png)
 
