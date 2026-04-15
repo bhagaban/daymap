@@ -18,15 +18,15 @@ Daymap is a macOS app (SwiftUI) for planning your day around time-blocked tasks.
 
 ## Screenshots
 
-### Daily (focus)
+### Daily
 
 ![Daily focus mode](screenshots/daily-focus.png)
 
-### Daily (timeline)
+### Weekly
 
 ![Daily timeline view](screenshots/daily-timeline.png)
 
-### Weekly
+### Focus Mode
 
 ![Weekly view](screenshots/weekly.png)
 
